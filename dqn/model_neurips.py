@@ -1,4 +1,4 @@
-from gym import spaces
+from gymnasium import spaces
 import torch.nn as nn
 import torch.nn.functional as F
 

@@ -1,5 +1,5 @@
 # Inspired from https://github.com/raillab/dqn
-from gym import spaces
+from gymnasium import spaces
 import numpy as np
 
 from dqn.model_nature import DQN as DQN_nature

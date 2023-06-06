@@ -1,11 +1,11 @@
 # Inspired from https://github.com/raillab/dqn
 import random
 import numpy as np
-import gym
+import gymnasium as gym
 
 from dqn.agent import DQNAgent
 from dqn.replay_buffer import ReplayBuffer
-from dqn.wrappers import *
+#from dqn.wrappers import *
 import wrappers_ag as wrap
 import torch
 import argparse
