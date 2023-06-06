@@ -3,3 +3,4 @@
 dqn/__pycache__/
 # Videos
 video/
+rewards_per_episode.csv

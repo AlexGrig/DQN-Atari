@@ -6,21 +6,43 @@ import gym
 from dqn.agent import DQNAgent
 from dqn.replay_buffer import ReplayBuffer
 from dqn.wrappers import *
+import wrappers_ag as wrap
 import torch
 import argparse
 
+def get_state(obs):
+    # AlexGrig ->
+    #state = np.array(obs)
+    #state = state.transpose((2, 0, 1))
+    #state = torch.from_numpy(state)
+    #return state.unsqueeze(0)
+    if isinstance(obs, tuple): # seems to work on reset in gymansium
+        tt0 = obs[0]
+    else:
+        tt0 = obs
+    #tt1 = wrap.obs_fit_shape_to_pytorch(tt0, extra_batch_dim=False)
+    #return torch.from_numpy(tt1)
+    return tt0
+    # AlexGrig <-
+    
 if __name__ == '__main__':
 
     parser = argparse.ArgumentParser(description='DQN Atari')
     parser.add_argument('--load-checkpoint-file', type=str, default=None, 
                         help='Where checkpoint file should be loaded from (usually results/checkpoint.pth)')
-
+    
+    parser.add_argument('--num-threads', type=int, default=None, 
+                        help='NUmber of threaeds fed into `torch.set_num_threads()` ')
     args = parser.parse_args()
     # If you have a checkpoint file, spend less time exploring
     if(args.load_checkpoint_file):
         eps_start= 0.01
     else:
         eps_start= 1
+    
+    if args.num_threads is not None:
+        print(f'num_threads: {args.num_threads}')
+        torch.set_num_threads(args.num_threads)
 
     hyper_params = {
         "seed": 42,  # which seed to use
@@ -28,7 +50,7 @@ if __name__ == '__main__':
         "replay-buffer-size": int(5e3),  # replay buffer size
         "learning-rate": 1e-4,  # learning rate for Adam optimizer
         "discount-factor": 0.99,  # discount factor
-        "dqn_type":"neurips",
+        "dqn_type": "nature", # neurips
         # total number of steps to run the environment for
         "num-steps": int(1e6),
         "batch-size": 32,  # number of transitions to optimize at the same time
@@ -45,21 +67,29 @@ if __name__ == '__main__':
     np.random.seed(hyper_params["seed"])
     random.seed(hyper_params["seed"])
 
-    assert "NoFrameskip" in hyper_params["env"], "Require environment with no frameskip"
-    env = gym.make(hyper_params["env"])
-    env.seed(hyper_params["seed"])
+    # AlexGrig ->
+    #assert "NoFrameskip" in hyper_params["env"], "Require environment with no frameskip"
+    #env = gym.make(hyper_params["env"])
+    #env.seed(hyper_params["seed"])
 
-    env = NoopResetEnv(env, noop_max=30)
-    env = MaxAndSkipEnv(env, skip=4)
-    env = EpisodicLifeEnv(env)
-    env = FireResetEnv(env)
-    env = WarpFrame(env)
-    env = PyTorchFrame(env)
-    env = ClipRewardEnv(env)
-    env = FrameStack(env, 4)
-    env = gym.wrappers.Monitor(
-        env, './video/', video_callable=lambda episode_id: episode_id % 50 == 0, force=True)
-
+    #env = NoopResetEnv(env, noop_max=30)
+    #env = MaxAndSkipEnv(env, skip=4)
+    #env = EpisodicLifeEnv(env)
+    #env = FireResetEnv(env)
+    #env = WarpFrame(env)
+    #env = PyTorchFrame(env)
+    #env = ClipRewardEnv(env)
+    #env = FrameStack(env, 4)
+    #env = gym.wrappers.Monitor(
+    #    env, './video/', video_callable=lambda episode_id: episode_id % 50 == 0, force=True)
+    
+    env_id = "PongNoFrameskip-v4"
+    env = wrap.make_atari_env(env_id, frameskip=4, repeat_action_probability=0, max_episode_steps=None, 
+                   init_noop_max=30, episode_life=True, remove_fire_action=False, new_size=84, 
+                   make_greyscale=True, clip_rewards=True, num_frame_stack=4)
+    env = wrap.WrapShapePyTorch(env, extra_batch_dim=False)
+    #import pdb; pdb.set_trace()
+    # AlexGrig <-
     replay_buffer = ReplayBuffer(hyper_params["replay-buffer-size"])
 
     agent = DQNAgent(
@@ -82,8 +112,11 @@ if __name__ == '__main__':
     eps_timesteps = hyper_params["eps-fraction"] * \
         float(hyper_params["num-steps"])
     episode_rewards = [0.0]
-
-    state = env.reset()
+    
+    # AlexGrig ->
+    #state = env.reset()
+    state = get_state( env.reset() )
+    #AlexGrig <-
     for t in range(hyper_params["num-steps"]):
         fraction = min(1.0, float(t) / eps_timesteps)
         eps_threshold = hyper_params["eps-start"] + fraction * \
@@ -96,14 +129,23 @@ if __name__ == '__main__':
         else:
             # Explore
             action = env.action_space.sample()
-
-        next_state, reward, done, info = env.step(action)
+        
+        #AlexGrig ->
+        #next_state, reward, done, info = env.step(action)
+        next_state, reward, terminated, truncated, info = env.step(action)
+        next_state = get_state(next_state)
+        done = (terminated or truncated)
+        # AlexGrig <-
+        
         agent.memory.add(state, action, reward, next_state, float(done))
         state = next_state
 
         episode_rewards[-1] += reward
         if done:
-            state = env.reset()
+            # AlexGrig ->
+            #state = env.reset()
+            state = get_state( env.reset() )
+            # AlexGrig <-
             episode_rewards.append(0.0)
 
         if t > hyper_params["learning-starts"] and t % hyper_params["learning-freq"] == 0:

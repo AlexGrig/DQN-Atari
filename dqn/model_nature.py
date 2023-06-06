@@ -1,4 +1,8 @@
-from gym import spaces
+# AlexGrig ->
+#from gym import spaces
+from gymnasium import spaces
+# AlexGrig <-
+
 import torch.nn as nn
 import torch.nn.functional as F
 
